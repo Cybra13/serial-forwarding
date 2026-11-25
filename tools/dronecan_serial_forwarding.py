@@ -14,17 +14,8 @@ parser.add_argument("--baudrate", default=115200, type=int, help="Serial baud ra
 parser.add_argument("--device", "-d", default=None, type=str, help="Serial device")
 parser.add_argument("--port", default=2001, type=int, help="Listen Port")
 parser.add_argument("--node-id", default=None, nargs="+", type=int, help="Node ID")
-global args
-args = parser.parse_args()
+args = None
 
-if args.node_id is None:
-    print("No node ID specified")
-    exit(1)
-
-if args.device is None:
-    print("No device specified")
-    exit(1)
-    
 class serialForwarding():
     def __init__(self, node, nodeid, instance):
         self.sock = None
@@ -78,7 +69,9 @@ class serialForwarding():
                 return
 
             if buf is None or len(buf) == 0:
-                break
+                # peer closed the connection: free the port for the next client
+                self.close_socket()
+                return
             self.tunnel.write(buf)
             self.num_tx_bytes += len(buf)
             print("     " * self.i + "port:" + str(args.port + self.i) + " tx_bytes: %u" % self.num_tx_bytes)
@@ -177,6 +170,16 @@ def getNode():
         return node
 
 if __name__ == "__main__":
+    args = parser.parse_args()
+
+    if args.node_id is None:
+        print("No node ID specified")
+        exit(1)
+
+    if args.device is None:
+        print("No device specified")
+        exit(1)
+
     try:
         node = getNode()
         for i in range(len(args.node_id)):
